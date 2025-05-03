@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>React WebSocket Chat (Standalone)</title>
+    <style>
+        body { font-family: sans-serif; }
+        #chat-container { max-width: 600px; margin: 2rem auto; }
+        #messages {
+            border: 1px solid #ccc;
+            padding: 1rem;
+            height: 300px;
+            overflow-y: scroll;
+            margin-bottom: 1rem;
+        }
+        #input { width: 80%; padding: 0.5rem; }
+        #send { padding: 0.5rem 1rem; }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- React & ReactDOM UMD builds -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<!-- Babel for in-browser JSX transform -->
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    function ChatApp() {
+        const [messages, setMessages] = useState([]);
+        const [input, setInput] = useState('');
+        const wsRef = useRef(null);
+
+        useEffect(() => {
+            // open ws:// connection
+            const socket = new WebSocket('ws://localhost:8025/ws/chat');
+            wsRef.current = socket;
+
+            socket.onopen = () => console.log('🟢 Connected');
+            socket.onmessage = e => setMessages(prev => [...prev, e.data]);
+            socket.onclose = () => console.log('🔴 Disconnected');
+
+            return () => socket.close();
+        }, []);
+
+        const sendMessage = () => {
+            if (!input.trim() || wsRef.current.readyState !== WebSocket.OPEN) return;
+            wsRef.current.send(input);
+            setInput('');
+        };
+
+        const onKey = e => { if (e.key === 'Enter') sendMessage(); };
+
+        return (
+            <div id="chat-container">
+                <h2>React WebSocket Chat</h2>
+                <div id="messages">
+                    {messages.map((m,i) => <div key={i}>{m}</div>)}
+                </div>
+                <input
+                    id="input"
+                    type="text"
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={onKey}
+                    placeholder="Type a message…"
+                />
+                <button id="send" onClick={sendMessage}>Send</button>
+            </div>
+        );
+    }
+
+    ReactDOM.render(<ChatApp />, document.getElementById('root'));
+</script>
+</body>
+</html>
